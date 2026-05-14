@@ -134,37 +134,39 @@ def _article_digest_line(article: Any, index: int) -> str:
    <a href="{e(url)}">Buka sumber</a>"""
 
 
+def _article_source_line(article: Any, index: int) -> str:
+    title = str(_get(article, "title", "Untitled")).strip()
+    source = _get(article, "source", "Unknown")
+    published_at = _compact_time(_get(article, "published_at", ""))
+    url = _get(article, "url") or _get(article, "id", "")
+    title = title[:110].rstrip() + ("..." if len(title) > 110 else "")
+    if url:
+        return f'{index}. <a href="{e(url)}">{e(title)}</a> — {e(source)} · {e(published_at)}'
+    return f"{index}. {e(title)} — {e(source)} · {e(published_at)}"
+
+
 def format_intelligence_brief(query: str, articles: list[Any], analysis: str | None) -> str:
     """Format a search result as an analytical Telegram briefing."""
     articles = [article for article in articles if (_get(article, "id") or "") != "none"]
     if not articles:
-        return f"""<b>INTELLIGENCE BRIEF: "{e(query)}"</b>
+        return f"""<b>{e(query)}</b>
 
-Belum ada artikel yang cukup relevan di database lokal.
+Belum ada artikel relevan di database lokal.
 
-Saran query:
-• Gunakan nama negara, organisasi, atau peristiwa spesifik.
-• Contoh: ekonomi Indonesia rupiah, AI chip Nvidia, konflik Gaza."""
+Gunakan query yang lebih spesifik: negara, organisasi, tokoh, sektor, atau peristiwa."""
 
     source_count = len({str(_get(article, "source") or "") for article in articles if _get(article, "source")})
-    categories = sorted({str(_get(article, "category") or "general") for article in articles})
     analysis_block = e(analysis or "Analisis belum tersedia.")
 
-    header = f"""<b>INTELLIGENCE BRIEF: "{e(query)}"</b>
+    header = f"""<b>{e(query)}</b>
 
-<b>CAKUPAN</b>
-• Artikel dianalisis: {len(articles)}
-• Sumber aktif: {source_count}
-• Kategori: {e(", ".join(categories[:5]))}
-
-<b>RANGKUMAN DAN ANALISIS</b>
 {analysis_block}
 
-<b>ARTIKEL PENDUKUNG</b>"""
+<b>Sumber</b>
+{len(articles)} artikel dari {source_count} sumber."""
 
-    article_blocks = [_article_digest_line(article, index) for index, article in enumerate(articles[:5], 1)]
-    footer = "\n\n<b>Catatan:</b> Analisis dibuat dari artikel yang sudah tersimpan lokal. Link tetap disediakan untuk verifikasi."
-    return "\n".join([header, *article_blocks, footer])
+    source_lines = [_article_source_line(article, index) for index, article in enumerate(articles[:4], 1)]
+    return "\n".join([header, *source_lines])
 
 
 def format_trending(topics: list[dict]) -> str:
@@ -202,27 +204,18 @@ def format_daily_digest(data: dict) -> list[str]:
     )
     briefing = e(data.get("briefing", "Belum ada briefing."))
     articles = data.get("articles", []) or []
-    article_blocks = [
-        _article_digest_line(article, index) for index, article in enumerate(articles[:6], 1)
-    ]
+    article_blocks = [_article_source_line(article, index) for index, article in enumerate(articles[:5], 1)]
 
-    digest = f"""<b>WORLD NEWS DIGEST</b>
-Edisi Pagi
+    digest = f"""<b>Daily Brief</b>
 
-<b>STATUS</b>
-• Artikel dianalisis: {e(data.get('total_articles', 0))}
-• Sumber aktif: {e(data.get('sources', 0))}
-• Topik trending: {e(data.get('trending_count', 0))}
-• Sentimen: {e(sentiment_line)}
+<b>Status</b>
+{e(data.get('total_articles', 0))} artikel · {e(data.get('sources', 0))} sumber · sentimen {e(sentiment_line)}
 
-<b>BRIEFING</b>
+<b>Briefing</b>
 {briefing}
 
-<b>SUMBER KUNCI</b>
-{''.join(article_blocks)}
-
-<b>CATATAN</b>
-Briefing dibuat dari artikel yang sudah tersimpan lokal. Link disediakan hanya untuk verifikasi."""
+<b>Sumber kunci</b>
+{chr(10).join(article_blocks)}"""
     return split_message(digest)
 
 

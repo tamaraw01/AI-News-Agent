@@ -150,23 +150,22 @@ def _local_daily_briefing(articles: list[Article], sentiment_dist: dict[str, flo
 
     return "\n".join(
         [
-            "INTI UTAMA",
-            f"• Dalam 24 jam terakhir sistem menangkap {len(articles)} artikel dari {len(sources)} sumber.",
-            f"• Distribusi sentimen: positif {sentiment_dist.get('positive', 0):.0%}, netral {sentiment_dist.get('neutral', 0):.0%}, negatif {sentiment_dist.get('negative', 0):.0%}.",
-            f"• Sumber paling aktif: {', '.join(name for name, _ in sources.most_common(4)) or 'belum jelas'}.",
+            "KESIMPULAN",
+            f"Dalam 24 jam terakhir, sinyal berita paling kuat berasal dari {', '.join(name for name, _ in sources.most_common(3)) or 'sumber campuran'} dengan fokus {', '.join(name for name, _ in categories.most_common(3)) or 'general'}.",
             "",
-            "SINYAL BESAR",
-            f"• Kategori dominan: {', '.join(name for name, _ in categories.most_common(4)) or 'general'}.",
-            f"• Fokus geografis yang muncul: {', '.join(name for name, _ in countries.most_common(4)) or 'global/mixed'}.",
+            "POIN KUNCI",
+            f"• Artikel: {len(articles)} dari {len(sources)} sumber.",
+            f"• Sentimen: positif {sentiment_dist.get('positive', 0):.0%}, netral {sentiment_dist.get('neutral', 0):.0%}, negatif {sentiment_dist.get('negative', 0):.0%}.",
+            f"• Fokus geografis: {', '.join(name for name, _ in countries.most_common(3)) or 'global/mixed'}.",
             f"• Topik trending: {top_trends}.",
             "",
-            "PRIORITAS BACA",
+            "SUMBER UTAMA",
             *(f"• {title}" for title in top_titles),
             "",
-            "YANG PERLU DIPANTAU",
-            "• Apakah satu isu mulai dilaporkan lintas banyak sumber.",
-            "• Apakah sentimen negatif terkonsentrasi pada ekonomi, konflik, kesehatan, atau teknologi.",
-            "• Apakah ada perkembangan lanjutan dari sumber primer atau media besar.",
+            "PERLU DIPANTAU",
+            "• Isu yang mulai dilaporkan lintas sumber besar.",
+            "• Lonjakan sentimen negatif pada ekonomi, konflik, kesehatan, atau teknologi.",
+            "• Konfirmasi dari sumber primer.",
         ]
     )
 
@@ -179,18 +178,19 @@ def _llm_daily_briefing(articles: list[Article], sentiment_dist: dict[str, float
 
         client = Groq(api_key=settings.groq_api_key)
         prompt = f"""
-Anda adalah analis intelijen berita kelas premium. Buat daily brief berbahasa Indonesia dari artikel yang diberikan.
+Anda adalah analis berita senior dan asisten eksekutif. Buat daily brief berbahasa Indonesia dari artikel yang diberikan.
 
 Standar output:
 - Jelas, pasti, to the point.
 - Tanpa emoji.
 - Tanpa Markdown bold/asterisk.
+- Tanpa basa-basi.
 - Jangan membuat daftar Who/Where/When mekanis.
 - Jangan menulis N/A.
 - Jangan mengarang fakta di luar artikel.
 - Jika artikel campur aduk, rangkum pola besar dan sebutkan keterbatasan sinyal.
-- Tulis seperti briefing asisten eksekutif: tajam, ringkas, operasional.
-- Maksimal 550 kata.
+- Tulis seperti briefing asisten eksekutif: tajam, ringkas, operasional, bersih.
+- Maksimal 260 kata.
 
 Konteks metrik:
 Jumlah artikel: {len(articles)}
@@ -198,20 +198,17 @@ Distribusi sentimen: {sentiment_dist}
 Trending: {trending[:5]}
 
 Struktur wajib:
-INTI UTAMA
-3-5 poin paling penting dari 24 jam terakhir.
+KESIMPULAN
+Satu paragraf pendek yang menjelaskan hal terpenting.
 
-SITUASI
-Apa yang sedang terjadi secara keseluruhan dan pola besarnya.
+POIN KUNCI
+3 bullet saja.
 
 DAMPAK
-Apa konsekuensi praktis bagi ekonomi, geopolitik, teknologi, kesehatan, atau publik.
+Dampak praktis dalam 1 paragraf pendek.
 
-RISIKO
-Apa yang belum jelas, bisa berubah, atau perlu diverifikasi.
-
-PRIORITAS PANTAU
-3 hal konkret yang harus dipantau berikutnya.
+PERLU DIPANTAU
+2-3 hal konkret.
 
 Artikel:
 {_article_context(articles)}

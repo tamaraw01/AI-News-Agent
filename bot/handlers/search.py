@@ -11,13 +11,13 @@ from notifications.dispatcher import split_and_send
 
 HELP_TEXT = (
     "Saya siap.\n\n"
-    "Kamu bisa bicara natural saja, tidak harus pakai command.\n\n"
+    "Tulis saja seperti bicara biasa. Saya bisa menangani permintaan berita dalam berbagai gaya bahasa.\n\n"
     "Contoh:\n"
-    "• kasih briefing hari ini\n"
+    "• briefing hari ini\n"
     "• apa kabar ekonomi global?\n"
-    "• rangkum berita AI Indonesia\n"
-    "• ada perkembangan penting apa pagi ini?\n\n"
-    "Command tetap bisa dipakai kalau ingin cepat: /digest, /cari, /ping."
+    "• brief me on AI regulation\n"
+    "• summarize Japan markets\n\n"
+    "Command cepat: /digest, /cari, /ping."
 )
 
 _DIGEST_PATTERNS = (
@@ -32,6 +32,18 @@ _DIGEST_PATTERNS = (
     "apa yang terjadi",
     "yang penting",
     "perkembangan penting",
+    "daily brief",
+    "news brief",
+    "today's",
+    "what happened",
+    "what matters",
+    "headlines",
+    "résumé",
+    "resume",
+    "actualités",
+    "noticias",
+    "nachrichten",
+    "ニュース",
 )
 
 _HELP_PATTERNS = (
@@ -39,6 +51,12 @@ _HELP_PATTERNS = (
     "cara pakai",
     "bantuan",
     "help",
+    "how to",
+    "how do",
+    "what can you do",
+    "ayuda",
+    "aide",
+    "hilfe",
     "mulai",
 )
 
@@ -48,12 +66,22 @@ _PING_PATTERNS = (
     "test",
     "online",
     "hidup",
+    "alive",
+    "ready",
+    "up",
 )
 
 _GREETINGS = (
     "halo",
     "hai",
     "hello",
+    "hi",
+    "hey",
+    "bonjour",
+    "hola",
+    "hallo",
+    "ciao",
+    "こんにちは",
     "pagi",
     "siang",
     "sore",
@@ -121,10 +149,25 @@ def _contains_any(text: str, patterns: tuple[str, ...]) -> bool:
     return any(pattern in normalized for pattern in patterns)
 
 
+def _looks_like_digest_request(text: str) -> bool:
+    normalized = _normalize(text)
+    if _contains_any(normalized, _DIGEST_PATTERNS):
+        return True
+    direct_digest_words = {"digest", "briefing", "headlines"}
+    direct_digest_phrases = {"today", "latest", "hari ini", "pagi ini", "24 jam"}
+    tokens = set(re.findall(r"\w+", normalized))
+    return normalized in direct_digest_phrases or (len(tokens) <= 3 and bool(tokens & direct_digest_words))
+
+
 def _strip_search_prefix(text: str) -> str:
     normalized = text.strip()
     return re.sub(
-        r"^(tolong|coba|dong|please|carikan|cari|kasih tahu|beritahu|rangkum|analisis|analisiskan)\s+",
+        (
+            r"^(tolong|coba|dong|please|pls|kindly|"
+            r"carikan|cari|cek|lihat|pantau|kasih tahu|beritahu|rangkum|analisis|analisiskan|"
+            r"search|find|check|look up|brief me on|summarize|analyse|analyze|"
+            r"résume|resume|résumer|buscar|busca|rechercher|cherchez)\s+"
+        ),
         "",
         normalized,
         flags=re.IGNORECASE,
@@ -146,9 +189,7 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     normalized = _normalize(query)
     if _looks_like_greeting(query):
-        await update.effective_message.reply_text(
-            "Saya di sini. Mau briefing hari ini, atau mau saya cek isu tertentu?"
-        )
+        await update.effective_message.reply_text("Siap. Kirim topik atau minta briefing hari ini.")
         return
     if _contains_any(normalized, _HELP_PATTERNS):
         await update.effective_message.reply_text(HELP_TEXT)
@@ -156,7 +197,7 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if _contains_any(normalized, _PING_PATTERNS) and len(normalized.split()) <= 5:
         await update.effective_message.reply_text("Saya online.")
         return
-    if _contains_any(normalized, _DIGEST_PATTERNS):
+    if _looks_like_digest_request(normalized):
         await _send_digest(update, context)
         return
 

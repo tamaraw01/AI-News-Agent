@@ -243,6 +243,48 @@ Catatan penting:
 - Untuk produksi serius, pindahkan state ke layanan eksternal: Postgres/Turso untuk database dan vector store managed untuk embedding/index.
 - Sambil masih lokal, bot Telegram bisa tetap jalan di mesin sendiri, sementara Horizon menjadi backend MCP yang bisa dipanggil client lain.
 
+### Error `Bearer token required`
+
+Jika membuka URL seperti `https://<server>.fastmcp.app/mcp` langsung dari browser dan muncul:
+
+```json
+{
+  "error": "invalid_request",
+  "error_description": "Bearer token required"
+}
+```
+
+Itu normal. Endpoint MCP di Horizon bukan halaman web publik, melainkan endpoint tool yang diproteksi authentication. Browser biasa tidak mengirim header `Authorization: Bearer ...`, jadi request ditolak sebelum tool dijalankan.
+
+Gunakan salah satu cara berikut untuk test:
+
+```text
+1. Horizon Inspector / ChatMCP dari dashboard Horizon.
+2. MCP client yang mendukung OAuth Horizon.
+3. FastMCP client dengan bearer token yang valid.
+```
+
+Contoh client Python:
+
+```python
+import asyncio
+from fastmcp import Client
+
+
+async def main():
+    async with Client(
+        "https://<server>.fastmcp.app/mcp",
+        auth="<access_token>",
+    ) as client:
+        print(await client.ping())
+        print(await client.call_tool("system_info", {}))
+
+
+asyncio.run(main())
+```
+
+Jangan menaruh token Horizon, Google, Groq, atau Telegram di repo. Simpan di Environment Variables Horizon atau `.env` lokal yang tidak ikut commit.
+
 ## Bicara Dengan Bot
 
 Kamu tidak harus memakai command. Bot dirancang agar bisa diajak bicara seperti asisten pribadi.

@@ -35,6 +35,51 @@ def _article_context(articles: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
+def _response_language(query: str) -> str:
+    """Best-effort language choice for the assistant response."""
+    lowered = query.strip().lower()
+    indonesian_markers = {
+        "apa",
+        "berita",
+        "kabar",
+        "ringkas",
+        "rangkum",
+        "analisis",
+        "hari",
+        "ini",
+        "tentang",
+        "ekonomi",
+        "dunia",
+    }
+    if any(marker in lowered.split() for marker in indonesian_markers):
+        return "Indonesian"
+
+    try:
+        from langdetect import detect
+
+        code = detect(query)
+    except Exception:
+        code = "id"
+
+    languages = {
+        "id": "Indonesian",
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "pt": "Portuguese",
+        "it": "Italian",
+        "nl": "Dutch",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "zh-cn": "Chinese",
+        "zh-tw": "Chinese",
+        "ar": "Arabic",
+        "hi": "Hindi",
+    }
+    return languages.get(code, "Indonesian")
+
+
 def _local_analysis(query: str, articles: list[dict[str, Any]]) -> str:
     sources = Counter(str(_get(article, "source") or "Unknown") for article in articles)
     categories = Counter(str(_get(article, "category") or "general") for article in articles)
@@ -44,20 +89,19 @@ def _local_analysis(query: str, articles: list[dict[str, Any]]) -> str:
 
     return "\n".join(
         [
-            "INTI CEPAT",
-            f"Topik {query} muncul dari {len(articles)} artikel paling relevan yang sudah tersimpan.",
-            f"Sumber dominan: {top_sources}. Kategori dominan: {top_categories}.",
+            "KESIMPULAN",
+            f"{query} muncul dalam {len(articles)} artikel relevan. Sinyal terkuat datang dari {top_sources}; kategori dominan: {top_categories}.",
             "",
-            "SINYAL UTAMA",
+            "POIN KUNCI",
             *(f"• {title}" for title in titles if title),
             "",
-            "MAKNA PRAKTIS",
-            "Gunakan daftar artikel pendukung di bawah sebagai bukti utama. Jika judul-judulnya belum benar-benar satu tema, query perlu dibuat lebih spesifik agar analisis makin tajam.",
+            "DAMPAK",
+            "Pantau apakah isu ini mulai muncul lintas sumber kredibel. Jika artikel pendukung masih campur, query perlu dibuat lebih spesifik agar analisis lebih presisi.",
             "",
-            "YANG PERLU DIPANTAU",
-            "• Apakah sumber lain mulai melaporkan pola yang sama.",
-            "• Apakah ada perkembangan terbaru dalam beberapa jam ke depan.",
-            "• Apakah dampaknya lokal, regional, atau global.",
+            "PERLU DIPANTAU",
+            "• Perkembangan baru dalam beberapa jam ke depan.",
+            "• Konfirmasi dari sumber primer atau media besar.",
+            "• Dampak langsung ke ekonomi, kebijakan, publik, atau sektor terkait.",
         ]
     )
 
@@ -78,33 +122,36 @@ def _llm_analysis(query: str, articles: list[dict[str, Any]]) -> str | None:
         from groq import Groq
 
         client = Groq(api_key=settings.groq_api_key)
+        response_language = _response_language(query)
         prompt = f"""
-Anda adalah analis berita senior. Buat briefing Telegram berbahasa Indonesia berdasarkan artikel yang diberikan.
+You are a senior news analyst and executive assistant. Write a concise Telegram briefing in {response_language}.
 
-Query pengguna: {query}
-Tanggal analisis: {datetime.utcnow().isoformat()} UTC
+User query: {query}
+Analysis time: {datetime.utcnow().isoformat()} UTC
 
-Aturan:
-- Jangan mengarang fakta di luar artikel.
-- Jika bukti artikel kurang kuat, katakan dengan jelas.
-- Fokus agar pembaca tidak perlu membuka web kecuali ingin verifikasi detail.
-- Jangan gunakan Markdown. Gunakan teks polos dengan heading singkat.
-- Maksimal 450 kata.
+Rules:
+- Be direct, clean, professional, and specific.
+- No greetings, no filler, no motivational language, no emoji.
+- Do not invent facts beyond the articles.
+- If evidence is weak, say it plainly.
+- Avoid mechanical Who/What/Where/When lists.
+- Use plain text only. No Markdown.
+- Maximum 220 words.
 
-Struktur wajib:
-INTI 30 DETIK:
-3-5 bullet paling penting.
+Required structure:
+KESIMPULAN
+One clear bottom line.
 
-ANALISIS:
-Apa pola besar, kenapa penting, dan dampaknya.
+POIN KUNCI
+3 bullets only.
 
-RISIKO / KETIDAKPASTIAN:
-Apa yang belum jelas atau bisa berubah.
+DAMPAK
+1 short paragraph.
 
-YANG PERLU DIPANTAU:
-3 hal konkret untuk dipantau berikutnya.
+PERLU DIPANTAU
+2-3 concrete items.
 
-Artikel:
+Articles:
 {_article_context(articles)}
 """
         response = client.chat.completions.create(
@@ -114,7 +161,10 @@ Artikel:
             messages=[
                 {
                     "role": "system",
-                    "content": "Anda menulis briefing berita yang padat, tajam, akurat, dan mudah dibaca di Telegram.",
+                    "content": (
+                        "You write sharp executive news briefings. "
+                        "Use the user's language when possible. Be brief, accurate, and plain."
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],
