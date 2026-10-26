@@ -139,9 +139,9 @@ bash run.sh logs
 
 ## FastMCP Backend
 
-Selain bot Telegram, proyek ini punya backend FastMCP di [mcp_server.py](</home/aditama/Documents/AI News Agent/mcp_server.py>). Anggap ini sebagai backend alat kerja: bot/asisten bisa memanggil tool, sementara server melakukan pekerjaan berat.
+The FastMCP backend is defined in [mcp_server.py](mcp_server.py). Clients can call its tools independently of the Telegram bot.
 
-Entrypoint cloud tersedia di [server.py](</home/aditama/Documents/AI News Agent/server.py>) dan konfigurasi deploy ada di [fastmcp.json](</home/aditama/Documents/AI News Agent/fastmcp.json>).
+The cloud entry point is [server.py](server.py), with deployment configuration in [fastmcp.json](fastmcp.json).
 
 Tool yang tersedia:
 
