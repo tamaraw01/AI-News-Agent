@@ -160,15 +160,9 @@ pip install -r requirements.txt
 fastmcp run fastmcp.json --skip-env --skip-source
 ```
 
-Default:
+`fastmcp run fastmcp.json` loads `server.py:mcp` and takes its transport settings from [fastmcp.json](fastmcp.json): HTTP on host `0.0.0.0` at path `/mcp/`. That file sets no port. The `MCP_*` variables have no effect here, because `mcp_server.py` reads them only when it runs as a script.
 
-```text
-MCP_HOST=0.0.0.0
-MCP_PORT=3000
-MCP_TRANSPORT=http
-```
-
-Alternatif untuk menjalankan file langsung:
+Running `python mcp_server.py` directly reads `MCP_TRANSPORT`, `MCP_HOST`, and `MCP_PORT`. Without them it starts an SSE server on `0.0.0.0:8001`. Set `MCP_TRANSPORT` to `http` or `stdio` to change the transport:
 
 ```bash
 MCP_TRANSPORT=http MCP_PORT=8001 python mcp_server.py
